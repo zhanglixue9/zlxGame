@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>鹈鹕骑行 · 沿海公路</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#1b3358" />
+<style>
+  :root{
+    --cream:#fff5e9;
+    --gold:#ffc94a;
+    --coral:#ff7a59;
+    --glass:rgba(20,22,34,.42);
+    --line:rgba(255,255,255,.18);
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#12203a}
+  body{
+    font-family:var(--font);color:var(--cream);
+    overscroll-behavior:none;touch-action:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  #game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;padding:calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));display:flex;flex-direction:column;justify-content:space-between}
+  .row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+
+  .score-wrap{display:flex;flex-direction:column;gap:2px;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+  .label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.75}
+  #score{font-family:var(--mono);font-size:clamp(34px,7vw,54px);font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .hearts{display:flex;gap:5px;margin-top:9px;font-size:19px;line-height:1}
+  .heart{color:#ff5566;text-shadow:0 0 12px rgba(255,70,90,.55);transition:transform .18s ease,color .2s}
+  .heart.empty{color:rgba(255,255,255,.2);text-shadow:none}
+  .heart.pop{transform:scale(1.35)}
+  .best{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.8;margin-top:6px}
+  .best b{font-family:var(--mono);font-weight:600;color:var(--gold)}
+
+  .actions{display:flex;gap:8px;pointer-events:auto}
+  .btn{
+    pointer-events:auto;border:1px solid var(--line);background:var(--glass);
+    color:var(--cream);font-family:var(--font);font-size:12.5px;font-weight:600;
+    padding:9px 14px;border-radius:999px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    cursor:pointer;transition:transform .12s ease,background .18s ease;white-space:nowrap;
+  }
+  .btn:active{transform:scale(.95);background:rgba(255,255,255,.16)}
+  .btn .ico{margin-right:5px;opacity:.9}
+
+  .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
+  .meter{display:flex;flex-direction:column;gap:7px;min-width:min(46vw,220px)}
+  .meter-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .bar{position:relative;height:10px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid var(--line);overflow:hidden;backdrop-filter:blur(6px)}
+  .bar i{position:absolute;inset:0;width:0%;border-radius:999px;background:linear-gradient(90deg,#ffb545,var(--coral));transition:width .12s linear}
+  .bar.full i{box-shadow:0 0 14px rgba(255,180,70,.85)}
+  .speed{font-family:var(--mono);font-size:12px;opacity:.8;letter-spacing:.06em}
+  .speed b{font-size:16px;color:var(--cream)}
+
+  /* 触屏按钮组 */
+  .touch-actions{display:none;align-items:flex-end;gap:12px;pointer-events:none}
+  .act-btn{
+    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;
+    border-radius:50%;pointer-events:auto;border:1px solid rgba(255,255,255,.28);
+    color:#2a1a10;font-weight:800;letter-spacing:.06em;backdrop-filter:blur(8px);
+    transition:transform .1s ease,filter .15s ease;
+  }
+  .act-btn small{font-size:9px;font-weight:600;opacity:.7}
+  #btn-boost{
+    width:92px;height:92px;font-size:14px;
+    background:radial-gradient(circle at 35% 30%,rgba(255,181,69,.78),rgba(255,122,89,.58));
+    box-shadow:0 10px 30px rgba(255,110,70,.35);
+  }
+  #btn-jump{
+    width:74px;height:74px;font-size:13px;
+    background:radial-gradient(circle at 35% 30%,rgba(160,220,255,.85),rgba(90,150,235,.6));
+    color:#0f2338;box-shadow:0 10px 26px rgba(90,150,235,.35);margin-bottom:44px;
+  }
+  .act-btn:active,.act-btn.on{transform:scale(.94);filter:brightness(1.25)}
+
+  /* ---------- 覆盖层 ---------- */
+  .overlay{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(circle at 50% 40%,rgba(18,26,46,.35),rgba(10,14,26,.72));
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    opacity:1;transition:opacity .28s ease;z-index:10;
+  }
+  .overlay.hide{opacity:0;pointer-events:none}
+  .panel{
+    width:min(92vw,430px);text-align:center;padding:32px 26px 26px;border-radius:26px;
+    background:linear-gradient(160deg,rgba(38,40,56,.82),rgba(22,24,38,.88));
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 30px 70px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .panel h1{font-size:clamp(26px,6vw,34px);letter-spacing:.04em;font-weight:800;line-height:1.15}
+  .panel .tag{margin-top:8px;font-size:12.5px;letter-spacing:.16em;opacity:.65;text-transform:uppercase}
+  .big-btn{
+    margin-top:22px;width:100%;padding:15px;border:none;border-radius:16px;cursor:pointer;
+    font-family:var(--font);font-size:16px;font-weight:800;letter-spacing:.08em;color:#2a1408;
+    background:linear-gradient(135deg,#ffd06a,#ff8a5c);
+    box-shadow:0 12px 30px rgba(255,130,90,.35);
+    transition:transform .12s ease,filter .15s;
+  }
+  .big-btn:active{transform:scale(.97);filter:brightness(1.08)}
+  .tips{margin-top:18px;font-size:12px;line-height:1.9;opacity:.62}
+  .tips kbd{
+    font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:5px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);
+  }
+  .panel .stat{margin-top:16px;display:flex;justify-content:center;gap:26px;font-size:12px;opacity:.8}
+  .panel .stat b{display:block;font-family:var(--mono);font-size:20px;color:var(--gold);margin-top:2px}
+
+  /* ---------- 特效层 ---------- */
+  #flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:6;
+    background:radial-gradient(circle at 50% 50%,rgba(255,60,40,0) 35%,rgba(255,60,40,.55) 100%);
+    transition:opacity .45s ease}
+  #flash.on{opacity:1;transition:opacity .06s ease}
+  #speedlines{
+    position:fixed;inset:-25%;pointer-events:none;opacity:0;z-index:5;mix-blend-mode:screen;
+    background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.6) 0deg .5deg,transparent .5deg 6deg);
+    -webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 26%,#000 76%);
+    mask-image:radial-gradient(circle at 50% 50%,transparent 26%,#000 76%);
+    transition:opacity .25s ease;animation:spin 22s linear infinite;
+  }
+  #speedlines.on{opacity:.32}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:4;
+    background:radial-gradient(circle at 50% 45%,rgba(0,0,0,0) 55%,rgba(8,10,18,.42) 100%)}
+
+  #rotate-hint{
+    position:fixed;left:0;right:0;bottom:calc(118px + env(safe-area-inset-bottom));text-align:center;
+    font-size:12px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:7
+  }
+  #rotate-hint.show{opacity:.75}
+
+  #toast{
+    position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translate(-50%,8px);
+    padding:8px 16px;border-radius:999px;background:rgba(18,20,32,.62);border:1px solid rgba(255,255,255,.16);
+    font-size:12.5px;letter-spacing:.06em;opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:8;
+    backdrop-filter:blur(8px);
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;
+    background:#12203a;color:#ffd7b5;font-size:13px;letter-spacing:.2em;transition:opacity .5s}
+  #boot.gone{opacity:0;pointer-events:none}
+
+  .touch-only{display:none}
+  @media (pointer:coarse){
+    .touch-actions{display:flex}
+    .kbd-only{display:none}
+    .touch-only{display:block}
+  }
+  @media (max-height:460px){
+    .meter{min-width:150px}
+    #btn-boost{width:78px;height:78px;font-size:12.5px}
+    #btn-jump{width:64px;height:64px;font-size:12px;margin-bottom:36px}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="vignette"></div>
+<div id="speedlines"></div>
+<div id="flash"></div>
+
+<div id="hud">
+  <div class="row">
+    <div class="score-wrap">
+      <div class="label">得分</div>
+      <div id="score">0</div>
+      <div class="hearts" id="hearts"></div>
+      <div class="best"><span>最高</span><b id="best">0</b></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-camera"><span class="ico">◎</span><span id="cam-label">追尾</span></button>
+      <button class="btn" id="btn-pause"><span class="ico">❚❚</span>暂停</button>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="meter">
+      <div class="meter-top">
+        <span class="label">冲刺能量</span>
+        <span class="speed"><b id="speed">0</b> km/h</span>
+      </div>
+      <div class="bar" id="bar"><i id="energy"></i></div>
+    </div>
+    <div class="touch-actions">
+      <button id="btn-jump" class="act-btn">跳<small>越障碍</small></button>
+      <button id="btn-boost" class="act-btn">冲刺<small>按住</small></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h1 id="ov-title">鹈鹕骑行</h1>
+    <div class="tag" id="ov-tag">沿海公路 · 3D 无限跑</div>
+    <div class="stat" id="ov-stat" style="display:none">
+      <div>本局得分<b id="ov-score">0</b></div>
+      <div>金币<b id="ov-coins">0</b></div>
+    </div>
+    <button class="big-btn" id="ov-btn">开始骑行</button>
+    <div class="tips" id="ov-tips">
+      <div class="kbd-only"><kbd>←</kbd><kbd>→</kbd> / <kbd>A</kbd><kbd>D</kbd> 左右移动 · <kbd>Shift</kbd> 冲刺 · <kbd>空格</kbd> 跳跃</div>
+      <div class="kbd-only">鼠标拖拽转视角 · 滚轮缩放 · <kbd>C</kbd> 切换视角 · <kbd>P</kbd> 暂停 · <kbd>R</kbd> 重开</div>
+      <div class="touch-only">拖动转向 · 双指拖动转视角 · 右下角冲刺 / 跳跃</div>
+      <div style="margin-top:6px;opacity:.8">冲刺时撞障碍会把它撞碎加分，平时撞会掉一格血</div>
+    </div>
+  </div>
+</div>
+
+<div id="rotate-hint">横屏玩更爽 →</div>
+<div id="toast"></div>
+<div id="boot">正在展开海岸线…</div>
+
+<script>
+  // 出错时直接把错误贴在屏幕上，方便本地排查
+  window.addEventListener('error', function (e) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99;background:#c0392b;color:#fff;font:12px/1.5 monospace;padding:10px;border-radius:8px;max-width:92%;white-space:pre-wrap';
+    d.textContent = 'ERROR: ' + e.message;
+    document.body.appendChild(d);
+  });
+</script>
+<script>/*__GAME__*/</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "name": "zlxgame",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "description": "鹈鹕骑行 · 沿海公路 3D 网页小游戏 / A 3D endless runner where a pelican rides a bike along a sunset coastal highway",
+  "license": "MIT",
+  "author": "张丽雪",
+  "homepage": "https://zhanglixue9.github.io/zlxGame/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhanglixue9/zlxGame.git"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "game",
+    "endless-runner",
+    "javascript"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "test": "node test.mjs",
+    "shots": "node shot.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "playwright-core": "^1.65.1",
+    "three": "^0.170.0"
+  }
+}
